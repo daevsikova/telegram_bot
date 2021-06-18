@@ -1,0 +1,7 @@
+rutimeparser
+deeppavlov
+pymorphy2
+nltk
+telebot
+transformers
+torch
