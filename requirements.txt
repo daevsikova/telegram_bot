@@ -1,5 +1,6 @@
 rutimeparser
 deeppavlov
+natasha
 pymorphy2
 nltk
 telebot
