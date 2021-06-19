@@ -4,4 +4,4 @@ class User:
         self.weather_data = None
         self.horo_sign = None
         self.horo_date = None
-        self.needs_greet = True  # нужно ли здороваться с пользователем
+        self.needs_greet = False  # нужно ли здороваться с пользователем (перове приветствие в /start)

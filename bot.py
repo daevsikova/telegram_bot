@@ -61,7 +61,7 @@ def is_toxic(message):
     message.tag_morph(morph_tagger)
     for token in message.tokens:
         token.lemmatize(morph_vocab)
-        if token.lemm.lower() == 'овен':
+        if token.lemma.lower() == 'овен':
             return 0
     tokens_pt = tokenizer_tox(message.text, return_tensors="pt")
     with torch.no_grad():
@@ -84,7 +84,7 @@ def is_appology(message):
 
 def is_bye(message):
     message = Doc(message.text)
-    message.segement(segmenter)
+    message.segment(segmenter)
     message.tag_morph(morph_tagger)
     cnt = 0
     for token in message.tokens:
@@ -96,73 +96,73 @@ def is_bye(message):
 
 @bot.message_handler(content_types=['text'])  # Функция обрабатывает текстовые сообщения
 def get_text(message):
-    try:
-        chat_id = message.chat.id
-        tox = is_toxic(message)
-        if tox:
-            if chat_id in user_dict:
-                user_dict[chat_id].toxic = tox
-            else:
-                user_dict[chat_id] = User(tox)
-            bot.reply_to(message,
-                        f"Очень грубо 🗿😤 Я к такому не привыкла!\n\n"
-                        f"Не буду вам помогать, пока не извинитесь..."
-                        )
-            # bot.register_next_step_handler(msg, get_text)
-            return
-
-        if chat_id in user_dict and user_dict[chat_id].toxic:
-            if is_appology(message):
-                bot.reply_to(message, "Ваши извинения приняты! Теперь можете просить меня о чем угодно!")
-                user_dict[chat_id].toxic = 0
-            else:
-                bot.reply_to(message, "Я по-прежнему жду ваших извинений...")
-            # bot.register_next_step_handler(msg, get_text)
-            return
+    # try:
+    chat_id = message.chat.id
+    tox = is_toxic(message)
+    if tox:
+        if chat_id in user_dict:
+            user_dict[chat_id].toxic = tox
         else:
             user_dict[chat_id] = User(tox)
-        if is_bye(message):
-            user_dict[chat_id].needs_greet = True
-            bot.send_message(chat_id, "Рада была помочь! До встречи!")
-            return
-        if user_dict[chat_id].needs_greet:
-            user_dict[chat_id].needs_greet = False
-            bot.send_message(chat_id, "Приветики-пистолетики!")
-        weather_cnt, horoscope_cnt, recipe_cnt = 0, 0, 0
-        doc = Doc(message.text)
-        doc.segment(segmenter)
-        doc.tag_morph(morph_tagger)
-        for token in doc.tokens:
-            token.lemmatize(morph_vocab)
-            if token.lemma in weather_parser.keywords:
-                weather_cnt += 1
-            elif token.lemma in horoscope_parser.keywords:
-                horoscope_cnt += 1
-            elif token.lemma in recipe_parser.keywords:
-                recipe_cnt += 1
+        bot.reply_to(message,
+                    f"Очень грубо 🗿😤 Я к такому не привыкла!\n\n"
+                    f"Не буду вам помогать, пока не извинитесь..."
+                    )
+        # bot.register_next_step_handler(msg, get_text)
+        return
 
-        if (weather_cnt > 0) + (horoscope_cnt > 0) + (recipe_cnt > 0) > 1:
-            bot.reply_to(message, 'Я умею делать только что-то одно за раз!\n'
-                                  'Попросите меня еще раз, но только о чем-то одном')
-            # bot.register_next_step_handler(msg, get_text)
-            return
-        if weather_cnt + horoscope_cnt + recipe_cnt == 0:
-            bot.reply_to(message, 'Я не поняла, чего вы от меня хотите((((\n'
-                                  'Спросите, пожалуйста, еще раз как-нибудь по-другому')
-            # bot.register_next_step_handler(msg, get_text)
-            return
-        if weather_cnt > 0:
-            bot.reply_to(message, 'Держите ваш прогноз:')
-            process_weather_step(message)
-            return
-        if horoscope_cnt > 0:
-            bot.reply_to(message, 'Вот о чем мне рассказали звезды:')
-            process_horoscope_step(message)
-            return
-        bot.reply_to(message, 'Могу предложить такой вариантик:')
-        process_recipe_step(message)
-    except Exception as e:
-        bot.reply_to(message, 'Что-то пошло не так...')
+    if chat_id in user_dict and user_dict[chat_id].toxic:
+        if is_appology(message):
+            bot.reply_to(message, "Ваши извинения приняты! Теперь можете просить меня о чем угодно!")
+            user_dict[chat_id].toxic = 0
+        else:
+            bot.reply_to(message, "Я по-прежнему жду ваших извинений...")
+        # bot.register_next_step_handler(msg, get_text)
+        return
+    if chat_id not in user_dict:
+        user_dict[chat_id] = User(tox)
+    if is_bye(message):
+        user_dict[chat_id].needs_greet = True
+        bot.send_message(chat_id, "Рада была помочь! До встречи!")
+        return
+    if user_dict[chat_id].needs_greet:
+        user_dict[chat_id].needs_greet = False
+        bot.send_message(chat_id, "Приветики-пистолетики!")
+    weather_cnt, horoscope_cnt, recipe_cnt = 0, 0, 0
+    doc = Doc(message.text)
+    doc.segment(segmenter)
+    doc.tag_morph(morph_tagger)
+    for token in doc.tokens:
+        token.lemmatize(morph_vocab)
+        if token.lemma in weather_parser.keywords:
+            weather_cnt += 1
+        elif token.lemma in horoscope_parser.keywords:
+            horoscope_cnt += 1
+        elif token.lemma in recipe_parser.keywords:
+            recipe_cnt += 1
+
+    if (weather_cnt > 0) + (horoscope_cnt > 0) + (recipe_cnt > 0) > 1:
+        bot.reply_to(message, 'Я умею делать только что-то одно за раз!\n'
+                              'Попросите меня еще раз, но только о чем-то одном')
+        # bot.register_next_step_handler(msg, get_text)
+        return
+    if weather_cnt + horoscope_cnt + recipe_cnt == 0:
+        bot.reply_to(message, 'Я не поняла, чего вы от меня хотите((((\n'
+                              'Спросите, пожалуйста, еще раз как-нибудь по-другому')
+        # bot.register_next_step_handler(msg, get_text)
+        return
+    if weather_cnt > 0:
+        bot.reply_to(message, 'Держите ваш прогноз:')
+        process_weather_step(message)
+        return
+    if horoscope_cnt > 0:
+        bot.reply_to(message, 'Вот о чем мне рассказали звезды:')
+        process_horoscope_step(message)
+        return
+    bot.reply_to(message, 'Могу предложить такой вариантик:')
+    process_recipe_step(message)
+    # except Exception as e:
+    #     bot.reply_to(message, 'Что-то пошло не так...')
 
 
 def process_weather_step(message):
