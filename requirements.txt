@@ -1,9 +1,9 @@
+torch==1.9.0
+transformers
 rutimeparser
 deeppavlov
 natasha
 pymorphy2
 nltk
 telebot
-transformers
-torch
-dateutil
+

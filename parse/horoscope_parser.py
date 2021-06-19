@@ -8,7 +8,7 @@ from dateutil import parser
 
 
 class HoroscopeParser:
-    keywords = ["гороскоп", "предсказание", "судьба", "прогноз"]
+    keywords = ["гороскоп", "предсказание", "судьба", "астрологический"]
     url = 'https://api.aicloud.sbercloud.ru/public/v1/public_inference/gpt3/predict'
     morph = pymorphy2.MorphAnalyzer()
     tokenizer = nltk.tokenize.TreebankWordTokenizer()
