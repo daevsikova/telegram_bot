@@ -46,7 +46,17 @@ class HoroscopeParser:
         data = {"text": f"Гороскоп {horo_sign} на {date}:"}
         response = requests.post(self.url, verify=True, json=data)
         horo = json.loads(response.text)['predictions']
-        return horo
+
+        cnt = 0
+        idx = 0
+        for sym in horo:
+            idx += 1
+            if sym == '.':
+                cnt += 1
+            if cnt == 5:
+                break
+
+        return horo[:idx]
 
     def _tokenize_text(self, text):
         words = self.tokenizer.tokenize(text)

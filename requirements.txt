@@ -5,5 +5,6 @@ deeppavlov
 natasha
 pymorphy2
 nltk
-telebot
+PyTelegramBotAPI
 
+#python -m deeppavlov install squad_zh_bert_zh

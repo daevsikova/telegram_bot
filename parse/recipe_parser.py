@@ -62,16 +62,18 @@ class RecipeParser(CommandParser):
                 ingredients.append(item)
 
         out['ingredients'] = ingredients
+        try:
+            recipe_raw = re.search(r'<h2>Рецепт([\s\S]+?)<div class="article-tags', recipe).group(0)
 
-        recipe_raw = re.search(r'<h2>Рецепт([\s\S]+?)<div class="article-tags', recipe).group(0)
+            recipe_steps = re.findall(r'<p>([\s\S]+?)<\/p>', recipe_raw)
 
-        recipe_steps = re.findall(r'<p>([\s\S]+?)<\/p>', recipe_raw)
+            recipe_steps = [re.sub(r'<br \/>', '', step) for step in recipe_steps]
 
-        recipe_steps = [re.sub(r'<br \/>', '', step) for step in recipe_steps]
+            out['steps'] = recipe_steps
 
-        out['steps'] = recipe_steps
-
-        return out
+            return out
+        except Exception as e:
+            return None
 
 
 if __name__ == '__main__':
