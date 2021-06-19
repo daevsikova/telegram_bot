@@ -5,6 +5,8 @@ import config
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from deeppavlov import configs, build_model
+from parse.horoscope_parser import HoroscopeParser
+from parse.user import User
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
@@ -35,10 +37,8 @@ def help_message(message):
     bot.send_message(message.chat.id,
                      f"<b>Я знаю следующие команды</b>:\n\n"
                      f"/help - <i>Повторить это сообщение</i>\n\n"
-                     f"/weather - <i>Узнать погоду</i>\n\n"
-                     f"/horo - <i>Узнать свой гороскоп</i>\n\n"
-                     f"/cook - <i>Получить рецепт по желаемым ингредиентам</i>\n\n"
-                     f"/exit - <i>Выход</i>\n",
+                     f"/exit - <i>Выход</i>\n\n"
+                     f"Если хочешь узнать погоду, гороскоп или интересный рецепт -- напиши мне об этом, я тебя пойму!",
                      parse_mode='HTML')
 
 
@@ -50,22 +50,79 @@ def end_message(message):
 
 @bot.message_handler(content_types=['text'])  # Функция обрабатывает текстовые сообщения
 def get_text(message):
-    tokens_pt = tokenizer_tox(message.text, return_tensors="pt")
-    with torch.no_grad():
-        request_is_toxic = torch.argmax(toxic_model(**tokens_pt)[0]).item()
-
-    if request_is_toxic:
-        bot.send_message(message.chat.id,
-                         text='Очень грубо 🗿😤 Я к такому не привыкла!\n\nЧтобы вызвать список команд, введите /help')
-        return
+    user = User()
+    user_dict[message.chat.id] = user_dict.get(message.chat.id, user)
 
     request_words = tokenize_text(message.text)
-    # здесь будет функциональность
+    if 'овен' not in request_words:
+        # check for toxic message
+        tokens_pt = tokenizer_tox(message.text, return_tensors="pt")
+        with torch.no_grad():
+            pred = torch.nn.functional.softmax(toxic_model(**tokens_pt)[0], dim=1).squeeze()
+            request_is_toxic = pred[1] > 0.8
 
-    bot.send_message(message.chat.id,
-                     text='Скоро всё будет готово 😏\n')
-    bot.send_message(message.chat.id,
-                    text='Я могу еще чем-то помочь?\nЕсли нет, то попрощайся со мной или напиши /exit')
+        if request_is_toxic:
+            bot.send_message(message.chat.id,
+                             text='Очень грубо 🗿😤 Я к такому не привыкла!\n\nЧтобы вызвать список команд, введите /help')
+            return
+
+    # classify request
+    cnt_keywords_horo = sum([1 if word in HoroscopeParser.keywords else 0 for word in request_words])
+
+    if cnt_keywords_horo > 0:
+        # try to find date
+        horo_parse = HoroscopeParser()
+        horo_date = horo_parse.process_date(message.text, ner_model)
+        user_dict[message.chat.id].horo_date = horo_date
+
+        # try to find horo sign
+        horo_sign = horo_parse.process_sign(message.text)
+        if horo_sign is None:
+            msg = bot.reply_to(message, 'Назови знак зодиака 🔮')
+            bot.register_next_step_handler(msg, process_sign_step)
+        else:
+            user_dict[message.chat.id].horo_sign = horo_sign
+            generate_horo(message)
+
+    else:
+        bot.send_message(message.chat.id,
+                         text='Я тебя не понимаю(\n\nЧтобы вызвать список команд, введите /help')
+
+
+def process_sign_step(message):
+    try:
+        horo_parse = HoroscopeParser()
+        chat_id = message.chat.id
+        horo_sign = horo_parse.process_sign(message.text)
+        if horo_sign is None:
+            msg = bot.reply_to(message, 'Попробуй еще! Назови знак зодиака 🔮')
+            bot.register_next_step_handler(msg, process_sign_step)
+            return
+        user_dict[chat_id].horo_sign = horo_sign
+        generate_horo(message)
+    except Exception as e:
+        bot.reply_to(message, 'Что-то пошло не так...')
+
+
+def generate_horo(message):
+    try:
+        horo_parse = HoroscopeParser()
+        chat_id = message.chat.id
+        # get horoscope
+        horo_date, horo_sign = user_dict[chat_id].horo_date, user_dict[chat_id].horo_sign
+        bot.send_message(chat_id,
+                         text='Предсказание почти готово... 🧙‍♀️\n')
+        final_horo = horo_parse.get_horo(horo_date, horo_sign)
+        # send horoscope to user
+        bot.send_message(chat_id,
+                         text=final_horo)
+
+        # clear for opportunity to get new horo
+        user_dict[chat_id].horo_date, user_dict[chat_id].horo_sign = None, None
+        bot.send_message(chat_id,
+                         text='Я могу еще чем-то помочь?\nЕсли нет, то попрощайся со мной или напиши /exit')
+    except Exception as e:
+        bot.reply_to(message, 'Что-то пошло не так...')
 
 
 def tokenize_text(text):
@@ -76,6 +133,5 @@ def tokenize_text(text):
         p = morph.parse(word)[0]
         result.append(p.normal_form)
     return result
-
 
 bot.polling(none_stop=True, interval=0)

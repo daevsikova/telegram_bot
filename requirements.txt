@@ -6,3 +6,4 @@ nltk
 telebot
 transformers
 torch
+dateutil
