@@ -7,6 +7,7 @@ from deeppavlov import configs, build_model
 from parse.recipe_parser import RecipeParser
 from parse.horoscope_parser import HoroscopeParser
 from parse.weather_parser import WeatherParser
+from parse.user import User
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
@@ -26,14 +27,6 @@ morph_tagger = NewsMorphTagger(emb)
 morph_vocab = MorphVocab()
 
 
-class User:
-    def __init__(self, toxic):
-        self.toxic = toxic
-        self.weather_data = None
-        self.horoscope_data = None
-        self.recipe_data = None
-
-
 @bot.message_handler(commands=['start'])  # Функция отвечает на команду 'start'
 def start_message(message):
     bot.send_message(message.chat.id,
@@ -51,10 +44,8 @@ def help_message(message):
     bot.send_message(message.chat.id,
                  f"<b>Я знаю следующие команды</b>:\n\n"
                  f"/help - <i>Повторить это сообщение</i>\n\n"
-                 f"/weather - <i>Узнать погоду</i>\n\n"
-                 f"/horo - <i>Узнать свой гороскоп</i>\n\n"
-                 f"/cook - <i>Получить рецепт по желаемым ингредиентам</i>\n\n"
-                 f"/exit - <i>Выход</i>\n",
+                 f"/exit - <i>Выход</i>\n\n"
+                 f"Если хочешь узнать погоду, гороскоп или интересный рецепт -- напиши мне об этом, я тебя пойму!",
                  parse_mode='HTML')
 
 
@@ -65,6 +56,13 @@ def end_message(message):
 
 
 def is_toxic(message):
+    message = Doc(message.text)
+    message.segment(segmenter)
+    message.tag_morph(morph_tagger)
+    for token in message.tokens:
+        token.lemmatize(morph_vocab)
+        if token.lemm.lower() == 'овен':
+            return 0
     tokens_pt = tokenizer_tox(message.text, return_tensors="pt")
     with torch.no_grad():
         pred = torch.nn.functional.softmax(toxic_model(**tokens_pt)[0], dim=1).squeeze()
@@ -80,6 +78,18 @@ def is_appology(message):
     for token in message.tokens:
         token.lemmatize(morph_vocab)
         if token.lemma.lower() in ['извинить', 'извинение', 'простить', 'прощение', 'извини']:
+            cnt += 1
+    return cnt
+
+
+def is_bye(message):
+    message = Doc(message.text)
+    message.segement(segmenter)
+    message.tag_morph(morph_tagger)
+    cnt = 0
+    for token in message.tokens:
+        token.lemmatize(morph_vocab)
+        if token.lemma.lower() in ['пока', 'свидание']:
             cnt += 1
     return cnt
 
@@ -111,7 +121,13 @@ def get_text(message):
             return
         else:
             user_dict[chat_id] = User(tox)
-
+        if is_bye(message):
+            user_dict[chat_id].needs_greet = True
+            bot.send_message(chat_id, "Рада была помочь! До встречи!")
+            return
+        if user_dict[chat_id].needs_greet:
+            user_dict[chat_id].needs_greet = False
+            bot.send_message(chat_id, "Приветики-пистолетики!")
         weather_cnt, horoscope_cnt, recipe_cnt = 0, 0, 0
         doc = Doc(message.text)
         doc.segment(segmenter)
@@ -131,7 +147,7 @@ def get_text(message):
             # bot.register_next_step_handler(msg, get_text)
             return
         if weather_cnt + horoscope_cnt + recipe_cnt == 0:
-            bot.reply_to(message, 'Я не поняла, чего вы отменя хотите((((\n'
+            bot.reply_to(message, 'Я не поняла, чего вы от меня хотите((((\n'
                                   'Спросите, пожалуйста, еще раз как-нибудь по-другому')
             # bot.register_next_step_handler(msg, get_text)
             return
@@ -140,7 +156,7 @@ def get_text(message):
             process_weather_step(message)
             return
         if horoscope_cnt > 0:
-            bot.reply_to(message, 'Вот о чем мне рассказли звезды:')
+            bot.reply_to(message, 'Вот о чем мне рассказали звезды:')
             process_horoscope_step(message)
             return
         bot.reply_to(message, 'Могу предложить такой вариантик:')
@@ -154,7 +170,45 @@ def process_weather_step(message):
 
 
 def process_horoscope_step(message):
-    pass
+    horo_date = horoscope_parser.process_date(message.text, ner_model)
+    user_dict[message.chat.id].horo_date = horo_date
+
+    # try to find horo sign
+    horo_sign = horoscope_parser.process_sign(message.text)
+    if horo_sign is None:
+        msg = bot.reply_to(message, 'Назови знак зодиака 🔮')
+        bot.register_next_step_handler(msg, process_sign_step)
+    else:
+        user_dict[message.chat.id].horo_sign = horo_sign
+        generate_horo(message)
+
+
+def process_sign_step(message):
+    chat_id = message.chat.id
+    horo_sign = horoscope_parser.process_sign(message.text)
+    if horo_sign is None:
+        msg = bot.reply_to(message, 'Попробуй еще! Назови знак зодиака 🔮')
+        bot.register_next_step_handler(msg, process_sign_step)
+        return
+    user_dict[chat_id].horo_sign = horo_sign
+    generate_horo(message)
+
+
+def generate_horo(message):
+    chat_id = message.chat.id
+    # get horoscope
+    horo_date, horo_sign = user_dict[chat_id].horo_date, user_dict[chat_id].horo_sign
+    bot.send_message(chat_id,
+                     text='Предсказание почти готово... 🧙‍♀️\n')
+    final_horo = horoscope_parser.get_horo(horo_date, horo_sign)
+    # send horoscope to user
+    bot.send_message(chat_id,
+                     text=final_horo)
+
+    # clear for opportunity to get new horo
+    user_dict[chat_id].horo_date, user_dict[chat_id].horo_sign = None, None
+    bot.send_message(chat_id,
+                     text='Я могу еще чем-то помочь?\nЕсли нет, то попрощайся со мной или напиши /exit')
 
 
 def process_recipe_step(message):
