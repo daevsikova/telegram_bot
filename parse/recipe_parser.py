@@ -8,28 +8,33 @@ import re
 
 
 class RecipeParser(CommandParser):
-    __keywords = ["приготовить", "сделать", "из"]
-    __myself = [
+    __except_nouns = [
         'бот',
-        # 'имя бота'
+        'натуська',
+        'рецепт',
+        'блюдо',
+        'привет'
     ]
     __segmenter = Segmenter()
     __emb = NewsEmbedding()
     __morph_tagger = NewsMorphTagger(__emb)
     __morph_vocab = MorphVocab()
 
+    def __init__(self):
+        self.keywords = ["приготовить", "сделать", "из", "рецепт", "блюдо"]
+
     def _extract_ingredients(self, message: Doc):
         message.segment(self.__segmenter)
         message.tag_morph(self.__morph_tagger)
         ingredients = []
         for token in message.tokens:
-            if token.pos == 'NOUN' and token.text.lower() not in self.__myself:
+            if token.pos == 'NOUN' and token.text.lower() not in self.__except_nouns:
                 token.lemmatize(self.__morph_vocab)
                 ingredients.append(token.lemma)
         return ingredients
 
-    def process(self, message: Doc):
-        query = self._extract_ingredients(message)
+    def process(self, query):
+        # query = self._extract_ingredients(message)
         url = "https://www.povarenok.ru/recipes/search/?ing="
         for word in query:
             url += (urllib.parse.quote_plus(word.encode('cp1251')) + '%2C+')
@@ -62,7 +67,7 @@ class RecipeParser(CommandParser):
 
         recipe_steps = re.findall(r'<p>([\s\S]+?)<\/p>', recipe_raw)
 
-        recipe_steps = [re.sub(r'<br \/>\r\n', '', step) for step in recipe_steps]
+        recipe_steps = [re.sub(r'<br \/>', '', step) for step in recipe_steps]
 
         out['steps'] = recipe_steps
 
