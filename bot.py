@@ -98,7 +98,7 @@ def is_bye(message):
 
 @bot.message_handler(content_types=['text'])  # Функция обрабатывает текстовые сообщения
 def get_text(message):
-    try:
+    # try:
         chat_id = message.chat.id
         tox = is_toxic(message)
         if tox:
@@ -154,7 +154,7 @@ def get_text(message):
                                   'Спросите, пожалуйста, еще раз как-нибудь по-другому')
             return
         if weather_cnt > 0:
-            bot.reply_to(message, 'Держите ваш прогноз:')
+            # bot.reply_to(message, 'Держите ваш прогноз:')
             process_weather_step(message)
             return
         if horoscope_cnt > 0:
@@ -163,8 +163,8 @@ def get_text(message):
             return
         bot.reply_to(message, 'Могу предложить такой вариантик:')
         process_recipe_step(message)
-    except Exception as e:
-        bot.reply_to(message, 'Что-то пошло не так...')
+    # except Exception as e:
+    #     bot.reply_to(message, 'Что-то пошло не так...')
 
 
 def process_horoscope_step(message):
