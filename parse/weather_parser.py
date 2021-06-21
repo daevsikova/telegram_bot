@@ -45,7 +45,7 @@ class WeatherParser(CommandParser):
         self.lat = None
         self.lon = None
 
-    def get_date(self, message, ner_model):
+    def get_date(self, message, ner_model, user):
         copy_message = message[:]
         for k, v in str2num.items():
             if k in message:
@@ -61,7 +61,7 @@ class WeatherParser(CommandParser):
                 if split_message[idx: idx + 2] not in ['сегодня', 'завтра']:
                     period_text = ' '.join(split_message[idx: idx + 2])
 
-            self.get_period(period_text, ner_model)
+            self.get_period(period_text, ner_model, user)
             copy_message = copy_message.replace(period_text, "")
 
         today = datetime.datetime.now().date()
@@ -73,7 +73,7 @@ class WeatherParser(CommandParser):
                 date = date
             if date < today:  # пн - вс, недел -- могут в обратную сторону распарсится
                 date = date + datetime.timedelta(days=7)
-            self.date = date
+            user.date = date
             # return self.date
 
         else:
@@ -94,13 +94,13 @@ class WeatherParser(CommandParser):
                 cur_date = datetime.datetime.now().date()
                 if date < cur_date:
                     date = cur_date
-                self.date = date
+                user.date = date
                 # return self.date
             else:
-                self.date = datetime.datetime.now().date()
+                user.date = datetime.datetime.now().date()
                 # return self.date
 
-    def get_period(self, message, ner_model):
+    def get_period(self, message, ner_model, user):
         res = []
         tags = ['B-DATE', 'I-DATE', 'B-TIME', 'I-TIME']
         ner_res = ner_model([message])
@@ -110,30 +110,30 @@ class WeatherParser(CommandParser):
 
         if len(res) == 2:
             if res[0] in str2num.keys():
-                self.period = int(str2num[res[0]])
+                user.period = int(str2num[res[0]])
                 # return int(str2num[res[0]])
             elif res[0].isdigit() and (res[0] in str2num.values()):
-                self.period = min(7, int(res[0]))
+                user.period = min(7, int(res[0]))
                 # return min(7, int(res[0]))
             else:
-                self.period = 7
+                user.period = 7
                 # return 7
         elif 'день' in message:
-            self.period = 1
+            user.period = 1
             # return 1
         elif 'недел' in message:
-            self.period = 7
+            user.period = 7
             # return 7
         else:
-            self.period = None
+            user.period = None
             # return None
 
-    def get_city(self, message):
+    def get_city(self, message, user):
         # сначала по аббревеатурам
         for k, v in main_cities.items():
             for c in v:
                 if c in message.lower():
-                    self.city = k
+                    user.city = k
                     return # return k
 
         # потом всё остальное
@@ -152,14 +152,14 @@ class WeatherParser(CommandParser):
             if span.type == 'LOC':
                 res.append(span.normal)
 
-        self.city = None if ' '.join(res) == '' else ' '.join(res)
+        user.city = None if ' '.join(res) == '' else ' '.join(res)
         # return self.city
 
-    def get_weather(self):
-        lat = self.lat
-        lon = self.lon
-        city = self.city
-        period = self.period
+    def get_weather(self, user):
+        lat = user.lat
+        lon = user.lon
+        city = user.city
+        period = user.period
         url = f'https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=hourly,current,minutely,alerts&units=metric&appid={API_TOKEN}&lang=ru'
         r = requests.get(url)
         weather_list = r.json()['daily']
@@ -168,7 +168,7 @@ class WeatherParser(CommandParser):
         print('len weather_list (0)', len(weather_list))
 
         for i, day_weather in enumerate(weather_list):
-            if self.date == day_weather[0]:
+            if user.date == day_weather[0]:
                 break
 
         weather_list = weather_list[i: i + period]

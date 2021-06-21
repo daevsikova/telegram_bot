@@ -5,3 +5,9 @@ class User:
         self.horo_sign = None
         self.horo_date = None
         self.needs_greet = True  # нужно ли здороваться с пользователем (перове приветствие в /start)
+        
+        self.date = None
+        self.period = None
+        self.city = None
+        self.lat = None
+        self.lon = None

@@ -242,15 +242,15 @@ def format_recipe(recipe):
 def process_weather_step(message): # главная функция, которая управляет всеми сценариями
     user = user_dict[message.chat.id]
 
-    weather_parser.get_date(message.text, ner_model)
-    weather_parser.get_city(message.text)
+    weather_parser.get_date(message.text, ner_model, user)
+    weather_parser.get_city(message.text, user)
 
-    if weather_parser.period is None:
-        weather_parser.get_period(message.text, ner_model)
+    if user.period is None:
+        weather_parser.get_period(message.text, ner_model, user)
 
-    city = weather_parser.city
-    period = weather_parser.period
-    print(log_info(weather_parser))
+    city = user.city
+    period = user.period
+    print(log_info(user))
 
     scenario1 = period and city
     scenario2 = period and (city is None)
@@ -280,22 +280,22 @@ def process_weather_step(message): # главная функция, котора
             bot.reply_to(message, 'Так, у меня возникли какие-то проблемы. Давай попробуем всё заново.')
 
     else:  # scenario1
-        if weather_parser.city and weather_parser.period:
+        if user.city and user.period:
             # меняем город, если проблемы с координатами
-            res = check_coordinates(weather_parser.city)
+            res = check_coordinates(user.city)
             if len(res) == 2:
-                weather_parser.lat, weather_parser.lon = res
+                user.lat, user.lon = res
                 text = weather_parser.get_weather()
-                print(log_info(weather_parser))
+                print(log_info(user))
                 # обнулим всё в парсере
-                weather_parser.city = None
-                weather_parser.lat = None
-                weather_parser.lon = None
-                weather_parser.period = None
-                weather_parser.date = None
+                user.city = None
+                user.lat = None
+                user.lon = None
+                user.period = None
+                user.date = None
                 bot.send_message(message.from_user.id, text)
             else:
-                weather_parser.city = None
+                user.city = None
                 msg = bot.reply_to(message, res)
                 bot.register_next_step_handler(msg, process_city_step)
 
@@ -304,35 +304,35 @@ def process_city_step(message):
     chat_id = message.chat.id
     user = user_dict[chat_id]
 
-    weather_parser.get_city(message.text)
-    print(log_info(weather_parser))
+    weather_parser.get_city(message.text, user)
+    print(log_info(user))
 
-    if weather_parser.city is None:
+    if user.city is None:
         msg = bot.reply_to(message,
                            'Ты уверен, что такой город существует? В моих базах его нет, попробуй ввести город ещё раз')
         bot.register_next_step_handler(msg, process_city_step)
         return
 
-    if weather_parser.city and weather_parser.period:
+    if user.city and user.period:
         bot.reply_to(message, 'Отлично! Такой город я знаю')
         # меняем город, если проблемы с координатами
-        res = check_coordinates(weather_parser.city)
+        res = check_coordinates(user.city)
         if len(res) == 2:
-            weather_parser.lat, weather_parser.lon = res
-            text = weather_parser.get_weather()
-            print(log_info(weather_parser))
+            user.lat, user.lon = res
+            text = weather_parser.get_weather(user)
+            print(log_info(user))
             # обнулим всё в парсере
-            weather_parser.city = None
-            weather_parser.lat = None
-            weather_parser.lon = None
-            weather_parser.period = None
-            weather_parser.date = None
+            user.city = None
+            user.lat = None
+            user.lon = None
+            user.period = None
+            user.date = None
             bot.send_message(message.from_user.id, text)
         else:
-            weather_parser.city = None
+            user.city = None
             msg = bot.reply_to(message, res)
             bot.register_next_step_handler(msg, process_city_step)
-    elif weather_parser.city:
+    elif user.city:
         msg = bot.reply_to(message, 'Отлично! Такой город я знаю. Можешь теперь ещё уточнить период?')
         bot.register_next_step_handler(msg, process_period_step)
 
@@ -341,32 +341,32 @@ def process_period_step(message):
     chat_id = message.chat.id
     user = user_dict[chat_id]
 
-    weather_parser.get_period(message.text, ner_model)
-    print(log_info(weather_parser))
+    weather_parser.get_period(message.text, ner_model, user)
+    print(log_info(user))
 
-    if weather_parser.period is None:
+    if user.period is None:
         msg = bot.reply_to(message, 'Ты уверен, что это корректный период? Что-то я его не понимаю. Попробуй ещё раз')
         bot.register_next_step_handler(msg, process_period_step)
         return
 
     bot.reply_to(message, 'Отлично! Понимаю о чём ты')
-    if weather_parser.city and weather_parser.period:
+    if user.city and user.period:
         # меняем город, если проблемы с координатами
-        res = check_coordinates(weather_parser.city)
+        res = check_coordinates(user.city)
         if len(res) == 2:
-            weather_parser.lat, weather_parser.lon = res
-            text = weather_parser.get_weather()
-            print(log_info(weather_parser))
+            user.lat, user.lon = res
+            text = weather_parser.get_weather(user)
+            print(log_info(user))
 
             # обнулим всё в парсере
-            weather_parser.city = None
-            weather_parser.lat = None
-            weather_parser.lon = None
-            weather_parser.period = None
-            weather_parser.date = None
+            user.city = None
+            user.lat = None
+            user.lon = None
+            user.period = None
+            user.date = None
             bot.send_message(message.from_user.id, text)
         else:
-            weather_parser.city = None
+            user.city = None
             msg = bot.reply_to(message, res)
             bot.register_next_step_handler(msg, process_city_step)
 #########################################################
