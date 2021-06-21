@@ -8,6 +8,7 @@ from parse.recipe_parser import RecipeParser
 from parse.horoscope_parser import HoroscopeParser
 from parse.weather_parser import WeatherParser
 from parse.user import User
+from utils import log_info, check_coordinates
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
@@ -166,10 +167,6 @@ def get_text(message):
         bot.reply_to(message, 'Что-то пошло не так...')
 
 
-def process_weather_step(message):
-    pass
-
-
 def process_horoscope_step(message):
     horo_date = horoscope_parser.process_date(message.text, ner_model)
     user_dict[message.chat.id].horo_date = horo_date
@@ -241,6 +238,138 @@ def format_recipe(recipe):
         out += f"Шаг {i+1}:\n{step}\n\n"
     return out
 
+#########################################################
+def process_weather_step(message): # главная функция, которая управляет всеми сценариями
+    user = user_dict[message.chat.id]
+
+    weather_parser.get_date(message.text, ner_model)
+    weather_parser.get_city(message.text)
+
+    if weather_parser.period is None:
+        weather_parser.get_period(message.text, ner_model)
+
+    city = weather_parser.city
+    period = weather_parser.period
+    print(log_info(weather_parser))
+
+    scenario1 = period and city
+    scenario2 = period and (city is None)
+    scenario3 = (period is None) and city
+    scenario4 = (period is None) and (city is None)
+
+    if scenario2:
+        try:
+            msg = bot.reply_to(message, 'Я могу сказать погоду но ты не указал в каком городе. Укажешь?')
+            bot.register_next_step_handler(msg, process_city_step)
+        except Exception as e:
+            bot.reply_to(message, 'Так, у меня возникли какие-то проблемы. Давай попробуем всё заново.')
+
+    elif scenario3:
+        try:
+            msg = bot.reply_to(message, 'Я могу сказать погоду но ты не указал период (сколько дней). Укажешь?')
+            bot.register_next_step_handler(msg, process_period_step)
+        except Exception as e:
+            bot.reply_to(message, 'Так, у меня возникли какие-то проблемы. Давай попробуем всё заново.')
+
+    elif scenario4:
+        try:
+            msg = bot.reply_to(message,
+                               'Я могу сказать погоду но ты не указал период (сколько дней) и город. Для начала можешь указать город?')
+            bot.register_next_step_handler(msg, process_city_step)
+        except Exception as e:
+            bot.reply_to(message, 'Так, у меня возникли какие-то проблемы. Давай попробуем всё заново.')
+
+    else:  # scenario1
+        if weather_parser.city and weather_parser.period:
+            # меняем город, если проблемы с координатами
+            res = check_coordinates(weather_parser.city)
+            if len(res) == 2:
+                weather_parser.lat, weather_parser.lon = res
+                text = weather_parser.get_weather()
+                print(log_info(weather_parser))
+                # обнулим всё в парсере
+                weather_parser.city = None
+                weather_parser.lat = None
+                weather_parser.lon = None
+                weather_parser.period = None
+                weather_parser.date = None
+                bot.send_message(message.from_user.id, text)
+            else:
+                weather_parser.city = None
+                msg = bot.reply_to(message, res)
+                bot.register_next_step_handler(msg, process_city_step)
+
+
+def process_city_step(message):
+    chat_id = message.chat.id
+    user = user_dict[chat_id]
+
+    weather_parser.get_city(message.text)
+    print(log_info(weather_parser))
+
+    if weather_parser.city is None:
+        msg = bot.reply_to(message,
+                           'Ты уверен, что такой город существует? В моих базах его нет, попробуй ввести город ещё раз')
+        bot.register_next_step_handler(msg, process_city_step)
+        return
+
+    if weather_parser.city and weather_parser.period:
+        bot.reply_to(message, 'Отлично! Такой город я знаю')
+        # меняем город, если проблемы с координатами
+        res = check_coordinates(weather_parser.city)
+        if len(res) == 2:
+            weather_parser.lat, weather_parser.lon = res
+            text = weather_parser.get_weather()
+            print(log_info(weather_parser))
+            # обнулим всё в парсере
+            weather_parser.city = None
+            weather_parser.lat = None
+            weather_parser.lon = None
+            weather_parser.period = None
+            weather_parser.date = None
+            bot.send_message(message.from_user.id, text)
+        else:
+            weather_parser.city = None
+            msg = bot.reply_to(message, res)
+            bot.register_next_step_handler(msg, process_city_step)
+    elif weather_parser.city:
+        msg = bot.reply_to(message, 'Отлично! Такой город я знаю. Можешь теперь ещё уточнить период?')
+        bot.register_next_step_handler(msg, process_period_step)
+
+
+def process_period_step(message):
+    chat_id = message.chat.id
+    user = user_dict[chat_id]
+
+    weather_parser.get_period(message.text, ner_model)
+    print(log_info(weather_parser))
+
+    if weather_parser.period is None:
+        msg = bot.reply_to(message, 'Ты уверен, что это корректный период? Что-то я его не понимаю. Попробуй ещё раз')
+        bot.register_next_step_handler(msg, process_period_step)
+        return
+
+    bot.reply_to(message, 'Отлично! Понимаю о чём ты')
+    if weather_parser.city and weather_parser.period:
+        # меняем город, если проблемы с координатами
+        res = check_coordinates(weather_parser.city)
+        if len(res) == 2:
+            weather_parser.lat, weather_parser.lon = res
+            text = weather_parser.get_weather()
+            print(log_info(weather_parser))
+
+            # обнулим всё в парсере
+            weather_parser.city = None
+            weather_parser.lat = None
+            weather_parser.lon = None
+            weather_parser.period = None
+            weather_parser.date = None
+            bot.send_message(message.from_user.id, text)
+        else:
+            weather_parser.city = None
+            msg = bot.reply_to(message, res)
+            bot.register_next_step_handler(msg, process_city_step)
+#########################################################
 
 
 bot.polling(none_stop=True, interval=0)
