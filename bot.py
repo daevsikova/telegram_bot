@@ -285,7 +285,7 @@ def process_weather_step(message): # главная функция, котора
             res = check_coordinates(user.city)
             if len(res) == 2:
                 user.lat, user.lon = res
-                text = weather_parser.get_weather()
+                text = weather_parser.get_weather(user)
                 print(log_info(user))
                 # обнулим всё в парсере
                 user.city = None
