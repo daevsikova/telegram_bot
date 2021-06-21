@@ -45,13 +45,16 @@ class RecipeParser(CommandParser):
         except urllib.error.HTTPError:
             return None
 
-        first_found = re.search(r'https\:\/\/www\.povarenok\.ru\/recipes\/show\/\d+\/', all_found_recepies).group(0)
+        try:
+            first_found = re.search(r'https\:\/\/www\.povarenok\.ru\/recipes\/show\/\d+\/', all_found_recepies).group(0)
+        except AttributeError:
+            return None
 
         recipe = urllib.request.urlopen(first_found).read().decode('cp1251')
 
         out = {}
 
-        out['name'] = re.search(r'<title>([\w\s;&]+&quot;)', recipe).group(0)
+        out['name'] = re.search(r'<title>([\w\s;&]+) – кулинарный рецепт', recipe).group(0)
 
         ingrid_amounts = [''.join(x) for x in re.findall(
             r'<span itemprop="name">([\w\s]+)<\/span>|<span itemprop="amount"(>[\d\.\s\w]+)</span>', recipe)]
