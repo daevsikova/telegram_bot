@@ -54,7 +54,10 @@ class RecipeParser(CommandParser):
 
         out = {}
 
-        out['name'] = re.search(r'<title>([\w\s;&]+) – кулинарный рецепт', recipe).group(0)
+        res = re.search(r'<title>([\w\s;&\-]+) – кулинарный рецепт', recipe)
+        out['name'] = res.group(1) if res is not None else 'Интересный рецепт'
+
+        print(out['name'])
 
         ingrid_amounts = [''.join(x) for x in re.findall(
             r'<span itemprop="name">([\w\s]+)<\/span>|<span itemprop="amount"(>[\d\.\s\w]+)</span>', recipe)]
