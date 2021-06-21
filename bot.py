@@ -230,7 +230,7 @@ def process_recipe_step(message):
 
 
 def format_recipe(recipe):
-    out = f"<b>Все необходимые ингридиенты:</b>\n\n"
+    out = f"<b>Название блюда: {recipe['name']}\n\n<b>Все необходимые ингридиенты:</b>\n\n"
     for ingredient in recipe['ingredients']:
         out += f"{ingredient}\n"
     out += f"\n\n<b>Шаги приготовления:</b>\n\n"

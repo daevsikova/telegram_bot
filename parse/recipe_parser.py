@@ -50,6 +50,9 @@ class RecipeParser(CommandParser):
         recipe = urllib.request.urlopen(first_found).read().decode('cp1251')
 
         out = {}
+
+        out['name'] = re.search(r'<title>([\w\s;&]+&quot;)', recipe).group(0)
+
         ingrid_amounts = [''.join(x) for x in re.findall(
             r'<span itemprop="name">([\w\s]+)<\/span>|<span itemprop="amount"(>[\d\.\s\w]+)</span>', recipe)]
 
