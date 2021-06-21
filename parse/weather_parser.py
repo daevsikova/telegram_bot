@@ -6,7 +6,7 @@ import json
 from rutimeparser import parse
 
 from utils import day_dict_proc
-
+from config import API_TOKEN
 from natasha import Doc, Segmenter, MorphVocab, NewsEmbedding, NewsNERTagger, NewsSyntaxParser
 from natasha.morph.tagger import NewsMorphTagger
 
@@ -160,7 +160,7 @@ class WeatherParser(CommandParser):
         lon = self.lon
         city = self.city
         period = self.period
-        url = f'https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=hourly,current,minutely,alerts&units=metric&appid={api_token}&lang=ru'
+        url = f'https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=hourly,current,minutely,alerts&units=metric&appid={API_TOKEN}&lang=ru'
         r = requests.get(url)
         weather_list = r.json()['daily']
         weather_list = [day_dict_proc(day) for day in weather_list]
