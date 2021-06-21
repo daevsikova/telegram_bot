@@ -294,6 +294,8 @@ def process_weather_step(message): # главная функция, котора
                 user.period = None
                 user.date = None
                 bot.send_message(message.from_user.id, text)
+                bot.send_message(message.from_user.id,
+                                 text='Я могу еще чем-то помочь?\nЕсли нет, то попрощайся со мной или напиши /exit')
             else:
                 user.city = None
                 msg = bot.reply_to(message, res)
@@ -328,6 +330,8 @@ def process_city_step(message):
             user.period = None
             user.date = None
             bot.send_message(message.from_user.id, text)
+            bot.send_message(message.from_user.id,
+                             text='Я могу еще чем-то помочь?\nЕсли нет, то попрощайся со мной или напиши /exit')
         else:
             user.city = None
             msg = bot.reply_to(message, res)
@@ -365,6 +369,8 @@ def process_period_step(message):
             user.period = None
             user.date = None
             bot.send_message(message.from_user.id, text)
+            bot.send_message(message.from_user.id,
+                             text='Я могу еще чем-то помочь?\nЕсли нет, то попрощайся со мной или напиши /exit')
         else:
             user.city = None
             msg = bot.reply_to(message, res)
