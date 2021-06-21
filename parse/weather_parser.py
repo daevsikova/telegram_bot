@@ -5,7 +5,7 @@ import datetime
 import json
 from rutimeparser import parse
 
-from smth import day_dict_proc
+from utils import day_dict_proc
 
 from natasha import Doc, Segmenter, MorphVocab, NewsEmbedding, NewsNERTagger, NewsSyntaxParser
 from natasha.morph.tagger import NewsMorphTagger
