@@ -45,7 +45,7 @@ class WeatherParser(CommandParser):
         self.lat = None
         self.lon = None
 
-    def get_date(self, message):
+    def get_date(self, message, ner_model):
         copy_message = message[:]
         for k, v in str2num.items():
             if k in message:
@@ -61,7 +61,7 @@ class WeatherParser(CommandParser):
                 if split_message[idx: idx + 2] not in ['сегодня', 'завтра']:
                     period_text = ' '.join(split_message[idx: idx + 2])
 
-            self.get_period(period_text)
+            self.get_period(period_text, ner_model)
             copy_message = copy_message.replace(period_text, "")
 
         today = datetime.datetime.now().date()
